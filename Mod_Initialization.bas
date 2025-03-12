@@ -1,22 +1,17 @@
-Attribute VB_Name = "Mod_Initialization"
 Option Explicit
 
-Public UseDMM As Boolean ' DMM ·llapot·nak t·rol·sa
-Public UseCalibrator As Boolean ' Kalibr·tor ·llapot·nak t·rol·sa
+Public UseCalibrator As Boolean ' Kalibr√°tor √°llapot√°nak t√°rol√°sa
+Public UseDMM As Boolean ' DMM √°llapot√°nak t√°rol√°sa
 Public ioMgr As VisaComLib.ResourceManager
 Public instrAny As VisaComLib.FormattedIO488
 Public instrAny2 As VisaComLib.FormattedIO488
 
 Public Sub InitializeDevices()
-    ' DMM Ès Kalibr·tor ·llapot·nak beolvas·sa az AA6 Ès AA7 cell·kbÛl
-    UseDMM = CBool(Range("AA6").Value)
+    ' Kalibr√°tor √©s DMM √°llapot√°nak beolvas√°sa
     UseCalibrator = CBool(Range("AA7").Value)
+    UseDMM = CBool(Range("AA6").Value)
 
-    ' Ha a cell·k ¸resek vagy nem megfelelı ÈrtÈket tartalmaznak, alapÈrtelmezett ÈrtÈkre ·llÌtjuk
-    If IsEmpty(Range("AA6").Value) Or Not IsNumeric(Range("AA6").Value) Then UseDMM = False
-    If IsEmpty(Range("AA7").Value) Or Not IsNumeric(Range("AA7").Value) Then UseCalibrator = False
-
-    ' DMM kapcsolat lÈtrehoz·sa, ha aktÌv
+    ' Multimeter kapcsolat l√©trehoz√°sa, ha enged√©lyezve van
     If UseDMM Then
         Set ioMgr = New VisaComLib.ResourceManager
         Set instrAny = New VisaComLib.FormattedIO488
@@ -25,9 +20,8 @@ Public Sub InitializeDevices()
         instrAny.WriteString ("*RST")
     End If
 
-    ' Kalibr·tor kapcsolat lÈtrehoz·sa, ha aktÌv
+    ' Kalibr√°tor kapcsolat l√©trehoz√°sa, ha haszn√°ljuk
     If UseCalibrator Then
-        If ioMgr Is Nothing Then Set ioMgr = New VisaComLib.ResourceManager ' Ha mÈg nem lett lÈtrehozva
         Set instrAny2 = New VisaComLib.FormattedIO488
         Set instrAny2.IO = ioMgr.Open(Range("V7").Value)
         instrAny2.WriteString ("*CLS")
@@ -35,4 +29,13 @@ Public Sub InitializeDevices()
     End If
 End Sub
 
+Public Sub StartMeasurement()
+    ' Ind√≠t√°s el≈ëtt az F oszlop t√∂rl√©se
+    Range("F2:F103").Interior.ColorIndex = xlNone 
 
+    ' Eszk√∂z√∂k inicializ√°l√°sa
+    Call InitializeDevices
+
+    ' M√©r√©s ind√≠t√°sa
+    Call RunMeasurement
+End Sub

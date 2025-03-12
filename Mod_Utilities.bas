@@ -1,6 +1,12 @@
 Option Explicit
 
-' ---------------------- Késleltetés ----------------------
+' ---------------------- Késleltetés (Windows API Sleep használata) ----------------------
+#If VBA7 Then
+    Public Declare PtrSafe Sub Sleep Lib "kernel32" (ByVal dwMilliseconds As Long)
+#Else
+    Public Declare Sub Sleep Lib "kernel32" (ByVal dwMilliseconds As Long)
+#End If
+
 Public Sub Wait(ByVal Seconds As Single)
     Dim lMilliSeconds As Long
     lMilliSeconds = Seconds * 1000

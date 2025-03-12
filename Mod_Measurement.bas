@@ -1,95 +1,103 @@
-Attribute VB_Name = "Mod_Measurement"
 Option Explicit
 
-Public Sub StartMeasurement()
-    Dim Counter As Integer, UtolsoSor As Integer, maxMeasurements As Integer
-    Dim MeresiMod As String, FunkcioMod As String
-    Dim avg As Double, stdev As Variant
-    Dim sum As Double, sumSq As Double, i As Integer
+Sub RunMeasurement()
+    Dim Counter As Integer
+    Dim UtolsoSor As Integer
+    Dim maxMeasurements As Integer
     Dim measurements() As Double
+    Dim sum As Double, sumSq As Double
+    Dim avg As Double, stdev As Variant
+    Dim i As Integer
+    Dim instrQuery As String
 
-    ' UtolsÛ sor meghat·roz·sa
-    With ActiveSheet
-        UtolsoSor = .Cells(.Rows.Count, "A").End(xlUp).Row
-    End With
-
-    ' MÈrÈsi sz·m beolvas·sa a V10 cell·bÛl
+    ' M√©r√©si sz√°m beolvas√°sa a V10 cell√°b√≥l
     maxMeasurements = CInt(Range("V10").Value)
     If maxMeasurements < 1 Then
-        MsgBox "Hib·s mÈrÈsi sz·m a V10 cell·ban!", vbCritical, "Hiba"
+        MsgBox "Hib√°s m√©r√©si sz√°m a V10 cell√°ban!", vbCritical, "Hiba"
         Exit Sub
     End If
 
-    ' Eszkˆzˆk inicializ·l·sa
-    Call InitializeDevices
-
-    ' MÈrÈsi ciklus
+    ' M√©r√©si tartom√°ny meghat√°roz√°sa
+    With ActiveSheet
+        UtolsoSor = .Cells(.Rows.Count, "A").End(xlUp).Row
+    End With
     Counter = 2
+
+    ' ------------------------------- F≈ë m√©r√©si ciklus -------------------------------
     While Counter < UtolsoSor + 1
+        Dim MeresiMod As String, FunkcioMod As String
         MeresiMod = Cells(Counter, 1).Value
         FunkcioMod = Left(MeresiMod, 3)
 
-        ' Ellenırizni kell, hogy a mÈrÈsi mÛd t·mogatott-e
-        If FunkcioMod <> "VDC" And FunkcioMod <> "VAC" Then
-            MsgBox "Nincs ilyen mÈrÈsi mÛd be·llÌtva: " & MeresiMod, vbExclamation
-            Exit Sub
-        End If
+        ' Aktu√°lis sor F oszlop√°nak kiemel√©se (s√°rga)
+        Cells(Counter, "F").Interior.Color = RGB(255, 239, 174)
 
-        ' MÈrÈsi parancs kiad·sa
-        If FunkcioMod = "VDC" Then
-            instrAny.WriteString ("FUNC " + Chr(34) + "VOLT:DC" + Chr(34))
-            instrAny.WriteString ("Volt:DC:Range 10")
-        ElseIf FunkcioMod = "VAC" Then
-            instrAny.WriteString ("FUNC " + Chr(34) + "VOLT:AC" + Chr(34))
-            instrAny.WriteString ("Volt:AC:Range 10")
-        End If
-
-        Wait (0.5)
-
-        ' Kalibr·tor aktiv·l·s (ha sz¸ksÈges)
-        If UseCalibrator Then
-            instrAny2.WriteString ("OUT 1V")
-            instrAny2.WriteString ("OPER")
-        End If
-
-        ' Tˆbbszˆrˆs mÈrÈs Ès statisztika sz·mÌt·sa
+        ' T√∂bbsz√∂r√∂s m√©r√©s √©s statisztika sz√°m√≠t√°sa
         sum = 0
         sumSq = 0
         ReDim measurements(1 To maxMeasurements)
 
-        For i = 1 To maxMeasurements
-            instrAny.WriteString ("Measure:Volt:DC?")
-            measurements(i) = ConvertDMMResponse(instrAny.ReadString)
-            sum = sum + measurements(i)
-            sumSq = sumSq + measurements(i) * measurements(i)
-            Wait (0.2) ' KÈsleltetÈs a mÈrÈsek kˆzˆtt
-        Next i
+        If UseDMM Then
+            ' Be√°ll√≠tjuk a DMM-et
+            If FunkcioMod = "VDC" Then
+                instrAny.WriteString ("FUNC " + Chr(34) + "VOLT:DC" + Chr(34))
+                instrAny.WriteString ("Volt:DC:Range 10")
+            ElseIf FunkcioMod = "VAC" Then
+                instrAny.WriteString ("FUNC " + Chr(34) + "VOLT:AC" + Chr(34))
+                instrAny.WriteString ("Volt:AC:Range 10")
+            End If
 
-        ' ¡tlag sz·mÌt·sa
+            Wait (0.5)
+
+            ' Kalibr√°tor be√°ll√≠t√°sa, ha enged√©lyezve van
+            If UseCalibrator Then
+                instrAny2.WriteString ("OUT 1V")
+                instrAny2.WriteString ("OPER")
+            End If
+
+            ' T√∂bbsz√∂r√∂s m√©r√©s
+            For i = 1 To maxMeasurements
+                instrAny.WriteString ("Measure:Volt:DC?")
+                instrQuery = Trim(instrAny.ReadString)
+
+                ' DMM v√°lasz konvert√°l√°sa
+                measurements(i) = ConvertDMMResponse(instrQuery)
+                sum = sum + measurements(i)
+                sumSq = sumSq + measurements(i) * measurements(i)
+
+                Wait (0.2) ' K√©sleltet√©s a m√©r√©sek k√∂z√∂tt
+            Next i
+        End If
+
+        ' √Åtlag sz√°m√≠t√°sa
         avg = sum / maxMeasurements
 
-        ' SzÛr·s sz·mÌt·sa
+        ' Sz√≥r√°s sz√°m√≠t√°sa (ha t√∂bb mint 1 m√©r√©s van)
         If maxMeasurements > 1 Then
             stdev = Sqr((sumSq / maxMeasurements) - (avg * avg))
         Else
             stdev = "N/A"
         End If
 
-        ' EredmÈnyek beÌr·sa az Excelbe
+        ' Eredm√©nyek be√≠r√°sa
         Cells(Counter, "F").Value = avg
         Cells(Counter, "J").Value = stdev
 
-        ' Kalibr·tor kikapcsol·sa (ha sz¸ksÈges)
+        ' Kalibr√°tor kikapcsol√°sa (ha haszn√°ljuk)
         If UseCalibrator Then instrAny2.WriteString ("STBY")
 
-        ' Kˆvetkezı sor
+        ' El≈ëz≈ë sor F oszlop√°nak h√°tt√©rsz√≠n vissza√°ll√≠t√°sa (t√∂rl√©se)
+        If Counter > 2 Then
+            Cells(Counter - 1, "F").Interior.ColorIndex = xlNone
+        End If
+
+        ' K√∂vetkez≈ë sor
         Counter = Counter + 1
     Wend
 
-    ' Eszkˆzˆk lez·r·sa
-    instrAny.IO.Close
-    If UseCalibrator Then instrAny2.IO.Close
+    ' ---------------------- F≈ë ciklus v√©ge ----------------------
+    If UseDMM Then instrAny.IO.Close ' DMM kapcsolat z√°r√°sa
+    If UseCalibrator Then instrAny2.IO.Close ' Kalibr√°tor kapcsolat z√°r√°sa
 
-    MsgBox "MÈrÈs befejezıdˆtt.", vbInformation, "KÈsz"
+    MsgBox "Sikeresen lefutott a Program"
 End Sub
-
